@@ -1,0 +1,19 @@
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+
+```{r}
+data <- read.csv("2020-09-30-21-09#1031.csv")
+ls(data)
+```
+
+```{r}
+data %>%
+  ggplot(aes(x=ascension_level, y=score)) +
+  geom_point() +
+  facet_grid(~victory)
+```
+
+
