@@ -58,14 +58,18 @@ percentages_df_losses <- percentages_df_losses %>%
 
 final_df <- merge(percentages_df_wins, percentages_df_losses, by='choice') %>%
   mutate(diff = percentage_win - percentage_loss) %>%
-  filter(choice != "TOKE")
+  filter(choice != "TOKE") %>%
+  mutate(neg = ifelse(diff < 0, TRUE, FALSE))
+  
 
 # Create bar plot faceted by victory
 ggplot(final_df) +
-  aes(x = choice, y = diff) +
+  aes(x = choice, y = diff, fill=neg) +
+  scale_fill_manual(values = c("blue", "red")) +
   geom_bar(stat = "identity") +
   labs(title = "Campfire Choice Percentage Difference Between Winning and Losing Runs",
        x = "Campfire Choice",
        y = "Percentage Difference",
        subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.")
+
 ```
