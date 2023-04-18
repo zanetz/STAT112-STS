@@ -3,17 +3,69 @@ library(ggplot2)
 library(tidyverse)
 ```
 
-
 ```{r}
-data <- read.csv("2020-09-30-21-09#1031.csv")
-ls(data)
+df <- read_csv("2020-09-30-21-09#1031.csv")
+
+df$REST <- str_count(df$campfire_choices, 'REST')
+df$PURGE <- str_count(df$campfire_choices, 'PURGE')
+df$SMITH <- str_count(df$campfire_choices, 'SMITH')
+df$LIFT <- str_count(df$campfire_choices, 'LIFT')
+df$TOKE <- str_count(df$campfire_choices, 'TOKE')
+df$DIG <- str_count(df$campfire_choices, 'DIG')
+df$RECALL <- str_count(df$campfire_choices, 'RECALL')
+
+df_l <- df %>%
+  filter(victory == FALSE)
+
+# Calculate percentage of each choice
+percentages_df_losses <- data.frame(
+  choice = c('REST', 'PURGE', 'SMITH', 'LIFT', 'TOKE', 'DIG', 'RECALL'),
+  percentage = c(mean(df_l$REST),
+                 mean(df_l$PURGE),
+                 mean(df_l$SMITH),
+                 mean(df_l$LIFT),
+                 mean(df_l$TOKE),
+                 mean(df_l$DIG),
+                 mean(df_l$RECALL))
+)
+
+df_w <- df %>%
+  filter(victory == TRUE)
+
+# Calculate percentage of each choice
+percentages_df_wins <- data.frame(
+  choice = c('REST', 'PURGE', 'SMITH', 'LIFT', 'TOKE', 'DIG', 'RECALL'),
+  percentage = c(mean(df_w$REST),
+                 mean(df_w$PURGE),
+                 mean(df_w$SMITH),
+                 mean(df_w$LIFT),
+                 mean(df_w$TOKE),
+                 mean(df_w$DIG),
+                 mean(df_w$RECALL))
+)
+
+win_tot <- sum(percentages_df_wins$percentage)
+
+percentages_df_wins <- percentages_df_wins %>%
+  mutate(percentage_win = percentage / (win_tot)*100) %>%
+  select(-percentage)
+
+l_tot <- sum(percentages_df_losses$percentage)
+
+percentages_df_losses <- percentages_df_losses %>%
+  mutate(percentage_loss = percentage / (l_tot)*100) %>%
+  select(-percentage)
+
+final_df <- merge(percentages_df_wins, percentages_df_losses, by='choice') %>%
+  mutate(diff = percentage_win - percentage_loss) %>%
+  filter(choice != "TOKE")
+
+# Create bar plot faceted by victory
+ggplot(final_df) +
+  aes(x = choice, y = diff) +
+  geom_bar(stat = "identity") +
+  labs(title = "Campfire Choice Percentage Difference Between Winning and Losing Runs",
+       x = "Campfire Choice",
+       y = "Percentage Difference",
+       subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.")
 ```
-
-```{r}
-data %>%
-  ggplot(aes(x=ascension_level, y=score)) +
-  geom_point() +
-  facet_grid(~victory)
-```
-
-
