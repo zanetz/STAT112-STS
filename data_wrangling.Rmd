@@ -70,6 +70,7 @@ ggplot(final_df) +
   labs(title = "Campfire Choice Percentage Difference Between Winning and Losing Runs",
        x = "Campfire Choice",
        y = "Percentage Difference",
-       subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.")
+       subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.") +
+  theme(legend.position = "none")
 
 ```
