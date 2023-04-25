@@ -1,6 +1,7 @@
 ```{r}
 library(ggplot2)
 library(tidyverse)
+library(stringr)
 ```
 
 ```{r}
@@ -72,5 +73,101 @@ ggplot(final_df) +
        y = "Percentage Difference",
        subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.") +
   theme(legend.position = "none")
+```
+
+```{r}
+calc_perc_hp <- function(max_hp, curr_hp) {
+  hp_per_floor <- list()
+  for (i in 1:length(max_hp)) {
+    hp_per_floor[[i]] <- as.numeric(curr_hp[[i]]) / as.numeric(max_hp[[i]])
+  }
+  return(hp_per_floor)
+}
+
+df$max_hp_list <- str_extract_all(df$max_hp_per_floor, "\\d+(\\.\\d+)?")
+df$curr_hp_list <- str_extract_all(df$current_hp_per_floor, "\\d+(\\.\\d+)?")
+
+perc_hp <- df %>%
+  mutate(perc_hp_per_floor = calc_perc_hp(max_hp_list, curr_hp_list))
+```
+
+```{r}
+
+mean_perc_hp_by_vitory <- perc_hp %>%
+  group_by(victory) %>%
+  mutate(mean_perc_hp = mean(unlist(perc_hp_per_floor))) %>%
+  summarize(mean = mean(mean_perc_hp))
+
+mean_diff <- mean_perc_hp_by_vitory[[2]][2] - mean_perc_hp_by_vitory[[2]][1]
+```
+
+```{r}
+get_choices <- function(campfire_choices) {
+  capfire_choices_by_floor <- list()
+  for (i in 1:length(campfire_choices)) {
+    capfire_choices_by_floor[[i]] <- stringr::str_match_all(campfire_choices[[i]], "(\\d+(?:\\.\\d+)?),\\s+'key':\\s+'([^']+)'")[[1]][,-1]
+  }
+  return(capfire_choices_by_floor)
+}
+
+campfire_choices <- perc_hp %>%
+  mutate(choices_by_floor = get_choices(campfire_choices))
+
+campfire_choices$choices_by_floor[[2]]
+```
+
+```{r}
+get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
+  choice_hp_percs <- list()
+  for (i in 1:length(campfire_choices)) {
+    choice_hp_percs[[i]] <- list()
+    for (j in 1:(length(campfire_choices[[i]])/2)) {
+      if (length(campfire_choices[[i]]) == 2) {
+        if (campfire_choices[[i]][2][j] == choice) {
+          floor_num <- as.numeric(campfire_choices[[i]][1][j])
+          choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
+        }
+      } else {
+        if (is.na(campfire_choices[[i]][,2][j])) {break}
+        if (campfire_choices[[i]][,2][j] == choice) {
+          floor_num <- as.numeric(campfire_choices[[i]][,1][j])
+          choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
+        }
+      }
+    }
+  }
+  return(choice_hp_percs)
+}
+
+perc_by_when_choices <- campfire_choices %>%
+  mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST")) %>%
+  mutate(perc_hp_when_smith = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "SMITH")) %>%
+  mutate(perc_hp_when_purge = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "PURGE")) %>%
+  mutate(perc_hp_when_lift = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "LIFT")) %>%
+  mutate(perc_hp_when_toke = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "TOKE")) %>%
+  mutate(perc_hp_when_dig = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "DIG")) %>%
+  mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL"))
+```
+
+
+```{r}
+perc_by_choices_by_victory <- perc_by_when_choices %>%
+  group_by(victory) %>%
+  mutate(mean_perc_hp_rest = mean(unlist(perc_hp_when_rest)), mean_perc_hp_smith = mean(unlist(perc_hp_when_smith)), mean_perc_hp_purge = mean(unlist(perc_hp_when_purge)), mean_perc_hp_lift = mean(unlist(perc_hp_when_lift)), mean_perc_hp_toke = mean(unlist(perc_hp_when_toke)), mean_perc_hp_dig = mean(unlist(perc_hp_when_dig)), mean_perc_hp_recall = mean(unlist(perc_hp_when_recall))) %>%
+  summarize(rest = mean(mean_perc_hp_rest), smith = mean(mean_perc_hp_smith), purge = mean(mean_perc_hp_purge), lift = mean(mean_perc_hp_lift), toke = mean(mean_perc_hp_toke), dig = mean(mean_perc_hp_dig), recall = mean(mean_perc_hp_recall))
+
+perc_by_choices_by_victory %>%
+  gather(key = "choice", value = "mean_perc_hp", -victory) %>%
+  ggplot() +
+  aes(x = choice, y = mean_perc_hp, fill = victory) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Percentage of Max HP When Choosing Campfire Option",
+       x = "Campfire Option",
+       y = "Average Percentage of Max HP")
 
 ```
+
+
+
+
+
