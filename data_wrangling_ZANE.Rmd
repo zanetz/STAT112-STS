@@ -17,8 +17,23 @@ ls(data)
 
 ```
 
-
 ```{r}
+
+
+# regEx to find the number of commas in masterdeck, then add 1 and store in new column called deck_card_count
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+
+data_victory$deck_card_count <- str_count(data_victory$master_deck, ",") + 1
+
+data$elites_battled <- str_count(path_per_floor, "E") + 1
+
+# find the average number of cards in a deck for players who won the game
+
+mean(data_victory$deck_card_count)
+
+mean(data$deck_card_count)
 
 data$deck_curse_count <- str_count(data$master_deck, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
 
@@ -27,13 +42,18 @@ data$curse_purge_count <- str_count(data$items_purged, "Clumsy|Decay|Doubt|Injur
 table(data$deck_curse_count)
 table(data$curse_purge_count)
 
-
-
 # remove any players who didn't make it to the first campfire  - kinda cleans out people who reset early.
 data <- data[!data$campfire_choices == "[]",]
 
 
-table(data$victory)
+```
+
+
+```{r}
+
+
+
+
 
 
 
@@ -248,24 +268,7 @@ vizandpic
 
 ```
 
-```{r}
 
-
-# regEx to find the number of commas in masterdeck, then add 1 and store in new column called deck_card_count
-
-data$deck_card_count <- str_count(data$master_deck, ",") + 1
-
-
-data_victory$deck_card_count <- str_count(data_victory$master_deck, ",") + 1
-
-# find the average number of cards in a deck for players who won the game
-
-mean(data_victory$deck_card_count)
-
-mean(data$deck_card_count)
-
-
-```
 
 ```{r}
 
@@ -340,4 +343,42 @@ mean(data_losers$purchased_purges)
 
 
 ```
+
+
+
+
+```{r}
+
+# use regex to find total number of elites battled: its the number of E in path_per_floor, make a new collumn
+
+data_victory %>%
+  mutate(elites_battled = str_count(path_per_floor, "E")) %>%
+  summarise(mean(elites_battled))
+
+data_losers %>%
+  mutate(elites_battled = str_count(path_per_floor, "E")) %>%
+  summarise(mean(elites_battled))
+  
+
+data %>%
+  mutate(elites_battled = str_count(path_per_floor, "E"))
+
+
+# find the mean number of elites battled for winners and losers based on floor_reached
+
+data_victory %>%
+  group_by(floor_reached) %>%
+  summarise(mean_elites_battled = mean(elites_battled))
+
+data_losers %>%
+  group_by(floor_reached) %>%
+  summarise(mean_elites_battled = mean(elites_battled))
+
+
+
+
+```
+
+
+
 
