@@ -26,35 +26,14 @@ data$deck_card_count <- str_count(data$master_deck, ",") + 1
 
 data$elites_battled <- str_count(data$path_per_floor, "E") 
 
-data$relics_count <- str_count(data$relics, ",") + 1
-
-data$shops_visited <- str_count(data$path_per_floor, "\\$")
-
 data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
 
 data$elites_battled_per_floor <- data$elites_battled/data$floor_reached
-
-
-
-data$deck_curse_count <- str_count(data$master_deck, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
-
-data$curse_purge_count <- str_count(data$items_purged, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
 
 # remove any players who didn't make it to the first campfire  - cleans out people who reset early.
 data <- data[!data$campfire_choices == "[]",]
 
 my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
-
-
-
-
-# make a dataset that only shows entries where victory = true
-data_victory <- data %>%
-  filter(victory == "True")
-
-# make a dataset just for losers
-data_losers <- data %>% 
-  filter(victory == "False")
 
 ```
 
@@ -69,8 +48,6 @@ dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
 colors <- c("#C81414", "#4BCAD0")
 
 mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
-
-
 
 
 ```
