@@ -119,7 +119,7 @@ campfire_choices <- perc_hp %>%
 ```
 
 ```{r}
-#load("hppercs.RData")
+load("hppercs.RData")
 
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
@@ -130,6 +130,7 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
         if (campfire_choices[[i]][2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][1][j])
           #print(perc_hp[[i]][floor_num])
+          if (is.na(perc_hp[[i]][floor_num] > 1)) {break}
           if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
@@ -138,6 +139,7 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
         if (campfire_choices[[i]][,2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][,1][j])
           #print(perc_hp[[i]][floor_num])
+          if (is.na(perc_hp[[i]][floor_num] > 1)) {break}
           if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
@@ -162,28 +164,28 @@ rests_w <- rests %>%
   select(perc_hp_when_rest) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = TRUE)
+  mutate(victory = "TRUE")
 
 rests_l <- rests %>%
   filter(victory == FALSE) %>%
   select(perc_hp_when_rest) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = FALSE)
+  mutate(victory = "FALSE")
 
 no_rest_l <- rests %>%
   filter(victory == FALSE) %>%
   select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = FALSE)
+  mutate(victory = "FALSE")
 
 no_rest_w <- rests %>%
   filter(victory == TRUE) %>%
   select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = TRUE)
+  mutate(victory = "TRUE")
 
 row.names(rests_l) <- NULL
 row.names(rests_w) <- NULL
