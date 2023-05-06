@@ -119,7 +119,7 @@ campfire_choices <- perc_hp %>%
 ```
 
 ```{r}
-load("hppercs.RData")
+#load("hppercs.RData")
 
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
@@ -130,7 +130,8 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
         if (campfire_choices[[i]][2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][1][j])
           #print(perc_hp[[i]][floor_num])
-          if (is.na(perc_hp[[i]][floor_num] > 1)) {break}
+          if (length(perc_hp[[i]][floor_num]) == 0) {break}
+          if (is.na(perc_hp[[i]][floor_num])) {break}
           if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
@@ -139,7 +140,8 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
         if (campfire_choices[[i]][,2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][,1][j])
           #print(perc_hp[[i]][floor_num])
-          if (is.na(perc_hp[[i]][floor_num] > 1)) {break}
+          if (length(perc_hp[[i]][floor_num]) == 0) {break}
+          if (is.na(perc_hp[[i]][floor_num])) {break}
           if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
@@ -158,34 +160,36 @@ rests <- campfire_choices %>%
   mutate(perc_hp_when_dig = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "DIG")) %>%
   mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL")) %>%
   select(perc_hp_when_rest, victory, perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall)
+```
 
+```{r}
 rests_w <- rests %>%
-  filter(victory == TRUE) %>%
+  filter(victory == "True") %>%
   select(perc_hp_when_rest) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = "TRUE")
+  mutate(victory = TRUE)
 
 rests_l <- rests %>%
-  filter(victory == FALSE) %>%
+  filter(victory == "False") %>%
   select(perc_hp_when_rest) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = "FALSE")
+  mutate(victory = FALSE)
 
 no_rest_l <- rests %>%
-  filter(victory == FALSE) %>%
+  filter(victory == "False") %>%
   select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = "FALSE")
+  mutate(victory = FALSE)
 
 no_rest_w <- rests %>%
-  filter(victory == TRUE) %>%
+  filter(victory == "True") %>%
   select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
   unlist() %>%
   data.frame() %>%
-  mutate(victory = "TRUE")
+  mutate(victory = TRUE)
 
 row.names(rests_l) <- NULL
 row.names(rests_w) <- NULL
@@ -217,14 +221,19 @@ all_perc_hps %>%
   facet_wrap(~Victory) +
   scale_fill_manual(values = c("red", "blue")) +
   labs(title = "Percent HP at Campfire", x = "Percent HP", y = "Density")
+```
 
-all_perc_hps %>%
+```{r}
+win_rate <- all_perc_hps %>%
   mutate(Percent_HP = round(Percent_HP, digits=2)) %>%
   group_by(Did_Rest, Percent_HP) %>%
   summarize(win_rate = mean(Victory)) %>%
+  filter(Percent_HP > 0)
+
+win_rate %>%
   ggplot(aes(x = Percent_HP, y = win_rate, color = Did_Rest)) +
   geom_line() +
-  labs(title = "Win Rate by Percent HP at Campfire", x = "Percent HP", y = "Win Rate") +
+  labs(title = "Win Rate by Percent HP at Campfire", x = "Percent HP", y = "Win Rate", color="Rested at Campfire") +
   scale_color_manual(values = c("red", "blue"))
 
 ```
