@@ -4,8 +4,8 @@
 ```{r}
 library(ggplot2)
 library(tidyverse)
-library(esquisse)
 library(dplyr)
+library(mosaic)
 
 ```
 
@@ -24,14 +24,13 @@ cleaning and adding columns.
 
 data$deck_card_count <- str_count(data$master_deck, ",") + 1
 
-data$deck_card_count <- str_count(data$master_deck, ",") + 1
-
 data$elites_battled <- str_count(data$path_per_floor, "E") 
 
 data$relics_count <- str_count(data$relics, ",") + 1
 
 data$shops_visited <- str_count(data$path_per_floor, "\\$")
 
+data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
 
 
 data$deck_curse_count <- str_count(data$master_deck, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
@@ -118,17 +117,6 @@ data_victory %>%
 
 ```
 
-```{r}
-
-character_order <- c("IRONCLAD", "WATCHER", "DEFECT", "THE_SILENT")
-
-data$character_ordered <- factor(data$character_chosen, levels = character_order)
-
-ggplot(data, aes(x = character_ordered, fill = victory)) +
-  geom_bar(position = "fill") +
-  theme_minimal()
-
-```
 
 
 
@@ -327,11 +315,33 @@ data_losers %>%
 
 
 
+```{r}
+
+mosaic_data <- table( data$character_chosen,data$victory )
+
+colors <- c("#C81414", "#4BCAD0")
+
+mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen") 
+
+```
 
 
+```{r}
+
+data %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
+  ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size by Character and Victory")
 
 
-
+```
 
 
 

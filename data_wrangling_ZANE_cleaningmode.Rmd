@@ -1,0 +1,113 @@
+
+# Zane edition
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(mosaic)
+
+```
+
+
+```{r}
+
+data <- read.csv("2020-09-30-21-09#1031.csv")
+ls(data)
+
+```
+
+
+
+cleaning and adding columns.
+```{r}
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+data$elites_battled <- str_count(data$path_per_floor, "E") 
+
+data$relics_count <- str_count(data$relics, ",") + 1
+
+data$shops_visited <- str_count(data$path_per_floor, "\\$")
+
+data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
+
+data$elites_battled_per_floor <- data$elites_battled/data$floor_reached
+
+
+
+data$deck_curse_count <- str_count(data$master_deck, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
+
+data$curse_purge_count <- str_count(data$items_purged, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
+
+# remove any players who didn't make it to the first campfire  - cleans out people who reset early.
+data <- data[!data$campfire_choices == "[]",]
+
+my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
+
+
+
+
+# make a dataset that only shows entries where victory = true
+data_victory <- data %>%
+  filter(victory == "True")
+
+# make a dataset just for losers
+data_losers <- data %>% 
+  filter(victory == "False")
+
+```
+
+
+```{r}
+
+mosaic_data <- table(data$character_chosen, data$victory)
+dimnames(mosaic_data)[[1]] <- c("Defect", "Ironclad", "The Silent", "Watcher")
+dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
+
+
+colors <- c("#C81414", "#4BCAD0")
+
+mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
+
+
+
+
+```
+
+
+```{r}
+
+data %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
+  ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size")
+
+```
+
+
+```{r}
+
+data %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_elites_battled_per_floor = mean(elites_battled_per_floor)) %>%
+  ggplot(aes(x = character_chosen, y = mean_elites_battled_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Elites Battled over Floors Reached", title = "Average Number of Elites Battled ")
+
+```
+
+
+
