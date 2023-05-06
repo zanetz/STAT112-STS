@@ -18,24 +18,46 @@ ls(data)
 ```
 
 
+
+cleaning and adding columns.
 ```{r}
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+data$elites_battled <- str_count(data$path_per_floor, "E") 
+
+data$relics_count <- str_count(data$relics, ",") + 1
+
+data$shops_visited <- str_count(data$path_per_floor, "\\$")
+
+
 
 data$deck_curse_count <- str_count(data$master_deck, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
 
 data$curse_purge_count <- str_count(data$items_purged, "Clumsy|Decay|Doubt|Injury|Normality|Pain|Parasite|Pride|Regret|Shame|Writhe")
 
-table(data$deck_curse_count)
-table(data$curse_purge_count)
-
-
-
-# remove any players who didn't make it to the first campfire  - kinda cleans out people who reset early.
+# remove any players who didn't make it to the first campfire  - cleans out people who reset early.
 data <- data[!data$campfire_choices == "[]",]
 
 
-table(data$victory)
+
+# make a dataset that only shows entries where victory = true
+data_victory <- data %>%
+  filter(victory == "True")
+
+# make a dataset just for losers
+data_losers <- data %>% 
+  filter(victory == "False")
+
+table(data$shops_visited)
 
 
+```
+
+
+```{r}
 
 # find the percent of players who have no curses in their deck, but have purged curses
 
@@ -43,9 +65,6 @@ data %>%
   filter(deck_curse_count == 0) %>%
   filter(curse_purge_count > 0) %>%
   nrow() / nrow(data) * 100
-
-
-
 
 
 # find the perecent of players from above who win the game
@@ -57,19 +76,13 @@ data %>%
   nrow() / nrow(data) * 100
 
 
-
-
 # find the perecent of players who have at least one curse in their deck
 data %>%
   filter(deck_curse_count > 0) %>%
   nrow() / nrow(data) * 100
 
 
-
-
-
 ## find the perecent of players from above who win the game
-
 data %>%
   filter(deck_curse_count > 0 | curse_purge_count > 0) %>%
   filter(victory == "true") %>%
@@ -77,9 +90,7 @@ data %>%
 
 
 
-
 # find the most popular curse purged
-
 data %>%
   filter(curse_purge_count > 0) %>%
   group_by(items_purged) %>%
@@ -91,18 +102,9 @@ data %>%
 table(data$victory)
 
 
-# make a dataset that only shows entries where victory = true
 
-data_victory <- data %>%
-  filter(victory == "True")
-
-# make a dataset just for losers
-
-data_losers <- data %>% 
-  filter(victory == "False")
 
 ## find percent of players who won the game with no curses in their deck, but have purged curses
-
 data_victory %>%
   filter(deck_curse_count == 0) %>%
   filter(curse_purge_count > 0) %>%
@@ -110,50 +112,21 @@ data_victory %>%
 
 
 ## find the percent of players who won the game with at least one curse in their deck
-
 data_victory %>%
   filter(deck_curse_count > 0) %>%
   nrow() / nrow(data_victory) * 100
 
 ```
 
-
-
-curses:
-Ascender's Bane       cant remove
-Clumsy
-Curse of the Bell   cant remove
-Decay
-Doubt
-Injury
-Necronomicurse    cant remove
-Normality
-Pain
-Parasite
-Pride
-Regret 
-Shame
-Writhe
-
-
-
-
 ```{r}
-
-
 
 character_order <- c("IRONCLAD", "WATCHER", "DEFECT", "THE_SILENT")
 
-
 data$character_ordered <- factor(data$character_chosen, levels = character_order)
-
 
 ggplot(data, aes(x = character_ordered, fill = victory)) +
   geom_bar(position = "fill") +
   theme_minimal()
-
-
-
 
 ```
 
@@ -248,24 +221,7 @@ vizandpic
 
 ```
 
-```{r}
 
-
-# regEx to find the number of commas in masterdeck, then add 1 and store in new column called deck_card_count
-
-data$deck_card_count <- str_count(data$master_deck, ",") + 1
-
-
-data_victory$deck_card_count <- str_count(data_victory$master_deck, ",") + 1
-
-# find the average number of cards in a deck for players who won the game
-
-mean(data_victory$deck_card_count)
-
-mean(data$deck_card_count)
-
-
-```
 
 ```{r}
 
@@ -332,12 +288,51 @@ data_losers %>%
 
 
 ```{r}
-
-
 mean(data_victory$purchased_purges)
 
 mean(data_losers$purchased_purges)
 
+```
+
+
+
+
+```{r}
+
+# use regex to find total number of elites battled: its the number of E in path_per_floor, make a new collumn
+
+data_victory %>%
+  mutate(elites_battled = str_count(path_per_floor, "E")) %>%
+  summarise(mean(elites_battled))
+
+data_losers %>%
+  mutate(elites_battled = str_count(path_per_floor, "E")) %>%
+  summarise(mean(elites_battled))
+
+# find the mean number of elites battled for winners and losers based on floor_reached
+
+data_victory %>%
+  group_by(floor_reached) %>%
+  summarise(mean_elites_battled = mean(elites_battled))
+
+data_losers %>%
+  group_by(floor_reached) %>%
+  summarise(mean_elites_battled = mean(elites_battled))
+
+
+
+
 
 ```
+
+
+
+
+
+
+
+
+
+
+
 
