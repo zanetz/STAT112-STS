@@ -12,8 +12,8 @@ library(mosaic)
 
 ```{r}
 
-data <- read.csv("2020-09-30-21-09#1031.csv")
-ls(data)
+#data <- read.csv("2020-09-30-21-09#1031.csv")
+load("2020-11-12345.RData")
 
 ```
 
@@ -40,7 +40,7 @@ my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
 
 ```{r}
 
-mosaic_data <- table(data$character_chosen, data$victory)
+mosaic_data <- table(data$character_chosen, data$victory)[-1,]
 dimnames(mosaic_data)[[1]] <- c("Defect", "Ironclad", "The Silent", "Watcher")
 dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
 
@@ -56,8 +56,10 @@ mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
 ```{r}
 
 data %>%
+  filter(floor_reached > 0) %>%
   group_by(character_chosen, victory) %>%
   summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
+  filter(length(character_chosen) > 1) %>%
   ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
   geom_col(position = "dodge") +
   scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
@@ -67,14 +69,17 @@ data %>%
   theme(legend.position = "none") +
   labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size")
 
+
 ```
 
 
 ```{r}
 
 data %>%
+  filter(floor_reached > 0) %>%
   group_by(character_chosen, victory) %>%
   summarise(mean_elites_battled_per_floor = mean(elites_battled_per_floor)) %>%
+  filter(length(character_chosen) > 1) %>%
   ggplot(aes(x = character_chosen, y = mean_elites_battled_per_floor, fill = character_chosen)) +
   geom_col(position = "dodge") +
   scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
