@@ -5,8 +5,11 @@ library(stringr)
 ```
 
 ```{r}
-df <- read_csv("2020-09-30-21-09#1031.csv")
+load("2020-11-12345.RData")
+df <- data
+```
 
+``` {r}
 df$REST <- str_count(df$campfire_choices, 'REST')
 df$PURGE <- str_count(df$campfire_choices, 'PURGE')
 df$SMITH <- str_count(df$campfire_choices, 'SMITH')
@@ -16,7 +19,7 @@ df$DIG <- str_count(df$campfire_choices, 'DIG')
 df$RECALL <- str_count(df$campfire_choices, 'RECALL')
 
 df_l <- df %>%
-  filter(victory == FALSE)
+  filter(victory == "False")
 
 # Calculate percentage of each choice
 percentages_df_losses <- data.frame(
@@ -31,7 +34,7 @@ percentages_df_losses <- data.frame(
 )
 
 df_w <- df %>%
-  filter(victory == TRUE)
+  filter(victory == "True")
 
 # Calculate percentage of each choice
 percentages_df_wins <- data.frame(
@@ -112,11 +115,11 @@ get_choices <- function(campfire_choices) {
 
 campfire_choices <- perc_hp %>%
   mutate(choices_by_floor = get_choices(campfire_choices))
-
-campfire_choices$choices_by_floor[[2]]
 ```
 
 ```{r}
+load("hppercs.RData")
+
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
   for (i in 1:length(campfire_choices)) {
@@ -125,12 +128,16 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
       if (length(campfire_choices[[i]]) == 2) {
         if (campfire_choices[[i]][2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][1][j])
+          #print(perc_hp[[i]][floor_num])
+          if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
       } else {
         if (is.na(campfire_choices[[i]][,2][j])) {break}
         if (campfire_choices[[i]][,2][j] == choice) {
           floor_num <- as.numeric(campfire_choices[[i]][,1][j])
+          #print(perc_hp[[i]][floor_num])
+          if (perc_hp[[i]][floor_num] > 1) {break}
           choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
         }
       }
@@ -138,6 +145,9 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   }
   return(choice_hp_percs)
 }
+
+campfire_choices %>%
+  mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST"))
 
 perc_by_when_choices <- campfire_choices %>%
   mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST")) %>%
@@ -151,10 +161,11 @@ perc_by_when_choices <- campfire_choices %>%
 
 
 ```{r}
+
 perc_by_choices_by_victory <- perc_by_when_choices %>%
   group_by(victory) %>%
-  mutate(mean_perc_hp_rest = mean(unlist(perc_hp_when_rest)), mean_perc_hp_smith = mean(unlist(perc_hp_when_smith)), mean_perc_hp_purge = mean(unlist(perc_hp_when_purge)), mean_perc_hp_lift = mean(unlist(perc_hp_when_lift)), mean_perc_hp_toke = mean(unlist(perc_hp_when_toke)), mean_perc_hp_dig = mean(unlist(perc_hp_when_dig)), mean_perc_hp_recall = mean(unlist(perc_hp_when_recall))) %>%
-  summarize(rest = mean(mean_perc_hp_rest), smith = mean(mean_perc_hp_smith), purge = mean(mean_perc_hp_purge), lift = mean(mean_perc_hp_lift), toke = mean(mean_perc_hp_toke), dig = mean(mean_perc_hp_dig), recall = mean(mean_perc_hp_recall))
+  mutate(mean_perc_hp_rest = mean(unlist(perc_hp_when_rest), na.rm=TRUE), mean_perc_hp_smith = mean(unlist(perc_hp_when_smith), na.rm=TRUE), mean_perc_hp_purge = mean(unlist(perc_hp_when_purge), na.rm=TRUE), mean_perc_hp_lift = mean(unlist(perc_hp_when_lift), na.rm=TRUE), mean_perc_hp_toke = mean(unlist(perc_hp_when_toke), na.rm=TRUE), mean_perc_hp_dig = mean(unlist(perc_hp_when_dig), na.rm=TRUE), mean_perc_hp_recall = mean(unlist(perc_hp_when_recall), na.rm=TRUE)) %>%
+  summarize(rest = mean(mean_perc_hp_rest), smith = mean(mean_perc_hp_smith), purge = mean(mean_perc_hp_purge), lift = mean(mean_perc_hp_lift), dig = mean(mean_perc_hp_dig), recall = mean(mean_perc_hp_recall))
 
 perc_by_choices_by_victory %>%
   gather(key = "choice", value = "mean_perc_hp", -victory) %>%
