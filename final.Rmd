@@ -1,0 +1,304 @@
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(stringr)
+library(dplyr)
+library(mosaic)
+```
+
+```{r}
+load("2020-11-12345.RData")
+df <- data
+```
+
+``` {r}
+df$REST <- str_count(df$campfire_choices, 'REST')
+df$PURGE <- str_count(df$campfire_choices, 'PURGE')
+df$SMITH <- str_count(df$campfire_choices, 'SMITH')
+df$LIFT <- str_count(df$campfire_choices, 'LIFT')
+df$TOKE <- str_count(df$campfire_choices, 'TOKE')
+df$DIG <- str_count(df$campfire_choices, 'DIG')
+df$RECALL <- str_count(df$campfire_choices, 'RECALL')
+
+df_l <- df %>%
+  filter(victory == "False")
+
+# Calculate percentage of each choice
+percentages_df_losses <- data.frame(
+  choice = c('REST', 'PURGE', 'SMITH', 'LIFT', 'TOKE', 'DIG', 'RECALL'),
+  percentage = c(mean(df_l$REST),
+                 mean(df_l$PURGE),
+                 mean(df_l$SMITH),
+                 mean(df_l$LIFT),
+                 mean(df_l$TOKE),
+                 mean(df_l$DIG),
+                 mean(df_l$RECALL))
+)
+
+df_w <- df %>%
+  filter(victory == "True")
+
+# Calculate percentage of each choice
+percentages_df_wins <- data.frame(
+  choice = c('REST', 'PURGE', 'SMITH', 'LIFT', 'TOKE', 'DIG', 'RECALL'),
+  percentage = c(mean(df_w$REST),
+                 mean(df_w$PURGE),
+                 mean(df_w$SMITH),
+                 mean(df_w$LIFT),
+                 mean(df_w$TOKE),
+                 mean(df_w$DIG),
+                 mean(df_w$RECALL))
+)
+
+win_tot <- sum(percentages_df_wins$percentage)
+
+percentages_df_wins <- percentages_df_wins %>%
+  mutate(percentage_win = percentage / (win_tot)*100) %>%
+  select(-percentage)
+
+l_tot <- sum(percentages_df_losses$percentage)
+
+percentages_df_losses <- percentages_df_losses %>%
+  mutate(percentage_loss = percentage / (l_tot)*100) %>%
+  select(-percentage)
+
+final_df <- merge(percentages_df_wins, percentages_df_losses, by='choice') %>%
+  mutate(diff = percentage_win - percentage_loss) %>%
+  filter(choice != "TOKE") %>%
+  mutate(neg = ifelse(diff < 0, TRUE, FALSE))
+  
+
+# Create bar plot faceted by victory
+ggplot(final_df) +
+  aes(x = choice, y = diff, fill=neg) +
+  scale_fill_manual(values = c("blue", "red")) +
+  geom_bar(stat = "identity") +
+  labs(title = "Campfire Choice Percentage Difference Between Winning and Losing Runs",
+       x = "Campfire Choice",
+       y = "Percentage Difference",
+       subtitle = "Negative means more losing runs chose it, positive means more winning runs chose it.") +
+  theme(legend.position = "none")
+```
+
+```{r}
+calc_perc_hp <- function(max_hp, curr_hp) {
+  hp_per_floor <- list()
+  for (i in 1:length(max_hp)) {
+    hp_per_floor[[i]] <- as.numeric(curr_hp[[i]]) / as.numeric(max_hp[[i]])
+  }
+  return(hp_per_floor)
+}
+
+df$max_hp_list <- str_extract_all(df$max_hp_per_floor, "\\d+(\\.\\d+)?")
+df$curr_hp_list <- str_extract_all(df$current_hp_per_floor, "\\d+(\\.\\d+)?")
+
+perc_hp <- df %>%
+  mutate(perc_hp_per_floor = calc_perc_hp(max_hp_list, curr_hp_list))
+```
+
+```{r}
+
+mean_perc_hp_by_vitory <- perc_hp %>%
+  group_by(victory) %>%
+  mutate(mean_perc_hp = mean(unlist(perc_hp_per_floor))) %>%
+  summarize(mean = mean(mean_perc_hp))
+
+mean_diff <- mean_perc_hp_by_vitory[[2]][2] - mean_perc_hp_by_vitory[[2]][1]
+```
+
+```{r}
+get_choices <- function(campfire_choices) {
+  capfire_choices_by_floor <- list()
+  for (i in 1:length(campfire_choices)) {
+    capfire_choices_by_floor[[i]] <- stringr::str_match_all(campfire_choices[[i]], "(\\d+(?:\\.\\d+)?),\\s+'key':\\s+'([^']+)'")[[1]][,-1]
+  }
+  return(capfire_choices_by_floor)
+}
+
+campfire_choices <- perc_hp %>%
+  mutate(choices_by_floor = get_choices(campfire_choices))
+```
+
+```{r}
+
+get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
+  choice_hp_percs <- list()
+  for (i in 1:length(campfire_choices)) {
+    choice_hp_percs[[i]] <- list()
+    for (j in 1:(length(campfire_choices[[i]])/2)) {
+      if (length(campfire_choices[[i]]) == 2) {
+        if (campfire_choices[[i]][2][j] == choice) {
+          floor_num <- as.numeric(campfire_choices[[i]][1][j])
+          #print(perc_hp[[i]][floor_num])
+          if (length(perc_hp[[i]][floor_num]) == 0) {break}
+          if (is.na(perc_hp[[i]][floor_num])) {break}
+          if (perc_hp[[i]][floor_num] > 1) {break}
+          choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
+        }
+      } else {
+        if (is.na(campfire_choices[[i]][,2][j])) {break}
+        if (campfire_choices[[i]][,2][j] == choice) {
+          floor_num <- as.numeric(campfire_choices[[i]][,1][j])
+          #print(perc_hp[[i]][floor_num])
+          if (length(perc_hp[[i]][floor_num]) == 0) {break}
+          if (is.na(perc_hp[[i]][floor_num])) {break}
+          if (perc_hp[[i]][floor_num] > 1) {break}
+          choice_hp_percs[[i]] <- append(choice_hp_percs[[i]], perc_hp[[i]][floor_num])
+        }
+      }
+    }
+  }
+  return(choice_hp_percs)
+}
+
+rests <- campfire_choices %>%
+  mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST")) %>%
+  mutate(perc_hp_when_smith = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "SMITH")) %>%
+  mutate(perc_hp_when_purge = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "PURGE")) %>%
+  mutate(perc_hp_when_lift = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "LIFT")) %>%
+  mutate(perc_hp_when_toke = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "TOKE")) %>%
+  mutate(perc_hp_when_dig = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "DIG")) %>%
+  mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL")) %>%
+  select(perc_hp_when_rest, victory, perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall)
+```
+
+```{r}
+rests_w <- rests %>%
+  filter(victory == "True") %>%
+  select(perc_hp_when_rest) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = TRUE)
+
+rests_l <- rests %>%
+  filter(victory == "False") %>%
+  select(perc_hp_when_rest) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = FALSE)
+
+no_rest_l <- rests %>%
+  filter(victory == "False") %>%
+  select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = FALSE)
+
+no_rest_w <- rests %>%
+  filter(victory == "True") %>%
+  select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = TRUE)
+
+row.names(rests_l) <- NULL
+row.names(rests_w) <- NULL
+row.names(no_rest_l) <- NULL
+row.names(no_rest_w) <- NULL
+
+rest_perc_hps <- rests_w %>%
+  rbind(rests_l) %>%
+  mutate(rest = TRUE)
+
+colnames(rest_perc_hps) <- c("Percent_HP", "Victory", "Did_Rest")
+
+no_rest_perc_hps <- no_rest_w %>%
+  rbind(no_rest_l) %>%
+  mutate(rest = FALSE)
+
+colnames(no_rest_perc_hps) <- c("Percent_HP", "Victory", "Did_Rest")
+
+all_perc_hps <- rest_perc_hps %>%
+  rbind(no_rest_perc_hps)
+```
+
+```{r}
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+data$elites_battled <- str_count(data$path_per_floor, "E") 
+
+data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
+
+data$elites_battled_per_floor <- data$elites_battled/data$floor_reached
+
+# remove any players who didn't make it to the first campfire  - cleans out people who reset early.
+data <- data[!data$campfire_choices == "[]",]
+
+my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
+
+```
+
+```{r}
+
+mosaic_data <- table(data$character_chosen, data$victory)[-1,]
+dimnames(mosaic_data)[[1]] <- c("Defect", "Ironclad", "The Silent", "Watcher")
+dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
+
+
+colors <- c("#C81414", "#4BCAD0")
+
+mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
+
+
+```
+
+```{r}
+
+all_perc_hps %>%
+  ggplot(aes(x = Percent_HP, fill = Did_Rest)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~Victory) +
+  scale_fill_manual(values = c("red", "blue")) +
+  labs(title = "Percent HP at Campfire", x = "Percent HP", y = "Density")
+```
+
+```{r}
+all_perc_hps %>%
+  mutate(Percent_HP = round(Percent_HP, digits=2)) %>%
+  group_by(Did_Rest, Percent_HP) %>%
+  summarize(win_rate = mean(Victory)) %>%
+  filter(Percent_HP > 0) %>%
+  ggplot(aes(x = Percent_HP, y = win_rate, color = Did_Rest)) +
+  geom_line() +
+  labs(title = "Win Rate by Percent HP at Campfire", x = "Percent HP", y = "Win Rate", color="Rested at Campfire") +
+  scale_color_manual(values = c("red", "blue"))
+
+```
+
+```{r}
+
+data %>%
+  filter(floor_reached > 0) %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
+  filter(length(character_chosen) > 1) %>%
+  ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size")
+
+
+```
+
+```{r}
+
+data %>%
+  filter(floor_reached > 0) %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_elites_battled_per_floor = mean(elites_battled_per_floor)) %>%
+  filter(length(character_chosen) > 1) %>%
+  ggplot(aes(x = character_chosen, y = mean_elites_battled_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Elites Battled over Floors Reached", title = "Average Number of Elites Battled ")
+
+```
