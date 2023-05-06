@@ -7,6 +7,7 @@ library(stringr)
 ```{r}
 load("2020-11-12345.RData")
 df <- data
+df <- read_csv("2020-09-30-21-09#1031.csv")
 ```
 
 ``` {r}
@@ -118,7 +119,7 @@ campfire_choices <- perc_hp %>%
 ```
 
 ```{r}
-load("hppercs.RData")
+#load("hppercs.RData")
 
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
@@ -146,35 +147,83 @@ get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   return(choice_hp_percs)
 }
 
-campfire_choices %>%
-  mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST"))
-
-perc_by_when_choices <- campfire_choices %>%
+rests <- campfire_choices %>%
   mutate(perc_hp_when_rest = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "REST")) %>%
   mutate(perc_hp_when_smith = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "SMITH")) %>%
   mutate(perc_hp_when_purge = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "PURGE")) %>%
   mutate(perc_hp_when_lift = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "LIFT")) %>%
   mutate(perc_hp_when_toke = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "TOKE")) %>%
   mutate(perc_hp_when_dig = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "DIG")) %>%
-  mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL"))
+  mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL")) %>%
+  select(perc_hp_when_rest, victory, perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall)
+
+rests_w <- rests %>%
+  filter(victory == TRUE) %>%
+  select(perc_hp_when_rest) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = TRUE)
+
+rests_l <- rests %>%
+  filter(victory == FALSE) %>%
+  select(perc_hp_when_rest) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = FALSE)
+
+no_rest_l <- rests %>%
+  filter(victory == FALSE) %>%
+  select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = FALSE)
+
+no_rest_w <- rests %>%
+  filter(victory == TRUE) %>%
+  select(perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall) %>%
+  unlist() %>%
+  data.frame() %>%
+  mutate(victory = TRUE)
+
+row.names(rests_l) <- NULL
+row.names(rests_w) <- NULL
+row.names(no_rest_l) <- NULL
+row.names(no_rest_w) <- NULL
+
+rest_perc_hps <- rests_w %>%
+  rbind(rests_l) %>%
+  mutate(rest = TRUE)
+
+colnames(rest_perc_hps) <- c("Percent_HP", "Victory", "Did_Rest")
+
+no_rest_perc_hps <- no_rest_w %>%
+  rbind(no_rest_l) %>%
+  mutate(rest = FALSE)
+
+colnames(no_rest_perc_hps) <- c("Percent_HP", "Victory", "Did_Rest")
+
+all_perc_hps <- rest_perc_hps %>%
+  rbind(no_rest_perc_hps)
 ```
 
 
 ```{r}
 
-perc_by_choices_by_victory <- perc_by_when_choices %>%
-  group_by(victory) %>%
-  mutate(mean_perc_hp_rest = mean(unlist(perc_hp_when_rest), na.rm=TRUE), mean_perc_hp_smith = mean(unlist(perc_hp_when_smith), na.rm=TRUE), mean_perc_hp_purge = mean(unlist(perc_hp_when_purge), na.rm=TRUE), mean_perc_hp_lift = mean(unlist(perc_hp_when_lift), na.rm=TRUE), mean_perc_hp_toke = mean(unlist(perc_hp_when_toke), na.rm=TRUE), mean_perc_hp_dig = mean(unlist(perc_hp_when_dig), na.rm=TRUE), mean_perc_hp_recall = mean(unlist(perc_hp_when_recall), na.rm=TRUE)) %>%
-  summarize(rest = mean(mean_perc_hp_rest), smith = mean(mean_perc_hp_smith), purge = mean(mean_perc_hp_purge), lift = mean(mean_perc_hp_lift), dig = mean(mean_perc_hp_dig), recall = mean(mean_perc_hp_recall))
+all_perc_hps %>%
+  ggplot(aes(x = Percent_HP, fill = Did_Rest)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~Victory) +
+  scale_fill_manual(values = c("red", "blue")) +
+  labs(title = "Percent HP at Campfire", x = "Percent HP", y = "Density")
 
-perc_by_choices_by_victory %>%
-  gather(key = "choice", value = "mean_perc_hp", -victory) %>%
-  ggplot() +
-  aes(x = choice, y = mean_perc_hp, fill = victory) +
-  geom_bar(stat = "identity", position = "dodge") +
-  labs(title = "Average Percentage of Max HP When Choosing Campfire Option",
-       x = "Campfire Option",
-       y = "Average Percentage of Max HP")
+all_perc_hps %>%
+  mutate(Percent_HP = round(Percent_HP, digits=2)) %>%
+  group_by(Did_Rest, Percent_HP) %>%
+  summarize(win_rate = mean(Victory)) %>%
+  ggplot(aes(x = Percent_HP, y = win_rate, color = Did_Rest)) +
+  geom_line() +
+  labs(title = "Win Rate by Percent HP at Campfire", x = "Percent HP", y = "Win Rate") +
+  scale_color_manual(values = c("red", "blue"))
 
 ```
 
