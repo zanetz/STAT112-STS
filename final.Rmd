@@ -1,17 +1,113 @@
-```{r}
+---
+title: "How to slay Slay The Spire"
+author: "Jeremy Hubinger & Zane Tibbetts-Zesbaugh"
+output:
+  bookdown::html_document2:
+    split_by: none
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      toc_collapsed: true
+    number_sections: false
+---
+
+```{r, echo = FALSE, message=FALSE, include=FALSE}
 library(ggplot2)
 library(tidyverse)
 library(stringr)
 library(dplyr)
 library(mosaic)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
 ```
 
-```{r}
+```{r, echo = FALSE}
 load("2020-11-12345.RData")
 df <- data
 ```
 
-``` {r}
+# Intro
+Just 9.2% of Slay the Spire runs end in success. In the video game Slay the Spire, a run is an attempt to beat the game (defeating the final boss) from start to finish. Defeat is common and forces the player start again from the beginning, losing any previous progress. Each run is unique due to randomness. As players progress through the game, they can add, remove, and upgrade cards in their deck. A player’s actions are determined by the cards they have in their deck. For example, a strike card allows a player to attack an enemy, while a block card gives the player some defense. With over 700 different cards in the game, there’s a massive variety of actions a player can have.
+
+# Our data
+## Where our data is from
+This data was initially shared in the official Slay the Spire Discord server by developers of the game. It is stored in a google drive folder and separated out with one file per hour per day. The data spans from 2018 to 2020 and includes everything about a run. This includes things that the players did such as what enemy they fought, or what cards they had, as well as the options presented to the play and what choices they made.
+All the data can be accessed [here](https://drive.google.com/drive/folders/1c7MwTdLxnPgvmPbBEfNWa45YAUU53H0l?usp=sharing).
+
+## What we did to it
+Since there was so much data we knew we needed to take a subset of it in order to make it easier to work with. In an ideal world we would take a random subset of all the data, but there is one huge problem with that: we would need to download all the data first. This was not feasible so we simply decided to take the most recent five days of the data and combine all 5*24 (one for each hour of every day) json files into one we could work with. This left us with over 800,000 runs and about 0.5gb of data. This smaller file that we used can be found [here](https://drive.google.com/file/d/112qEi9LtCSdzc1bvSveWGOlfDfkM4Y1A/view?usp=sharing).
+
+# Research Question
+What are the differences between winning and losing runs?
+From the start we knew that we wanted to examine the differences between winning and losing runs. The tough part was finding a way to do this where the results would be actionable by the player. For example, it's very easy to say something like “players win more when they have higher health” but that isn’t very useful because of course all players want high health. So we wanted to focus on choices that the player made, such as what option to pick at a campfire, what to do at a shop, what monsters to chose to face, etc.
+
+# Win Rate
+As we can see from this plot, the vast majority of runs do not end in victory. This is true across all characters.
+Unlike a proportional bar chart, a mosaic plot allows us to show the frequency of characters chosen as well as their respective win rates. While some characters are played more often than others, the overall win rates remain similar. This was slightly surprising since each character has their own unique cards and abilities, making some easier to play than others. 
+
+```{r, echo = FALSE}
+
+# win percentage
+data %>% 
+  group_by(victory) %>% 
+  summarise(total_runs = n()) %>%
+  mutate(percentage = total_runs/sum(total_runs)*100)
+
+data$deck_card_count <- str_count(data$master_deck, ",") + 1
+
+data$elites_battled <- str_count(data$path_per_floor, "E") 
+
+data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
+
+data$elites_battled_per_floor <- data$elites_battled/data$floor_reached
+
+# remove any players who didn't make it to the first campfire  - cleans out people who reset early.
+data <- data[!data$campfire_choices == "[]",]
+
+my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
+
+```
+
+```{r, fig.alt = "This mosaic plot shows that ironclad is the most played class and watcher is the least. It also shows all classes have a low roughly 10% winrate.", echo = FALSE}
+
+mosaic_data <- table(data$character_chosen, data$victory)[-1,]
+dimnames(mosaic_data)[[1]] <- c("Defect", "Ironclad", "The Silent", "Watcher")
+dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
+
+
+colors <- c("#C81414", "#4BCAD0")
+
+mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
+
+
+```
+
+# Deck Size
+This second visual explores the deck size of each class while faceting based on the outcome of a run. While accounting for the number of floors a player reached, the chart shows that smaller decks are more successful. As players progress through the game, they are presented with the option to add a card to their deck at almost every turn. While adding cards to the deck is advised, it’s best not to clutter it with cards that are not powerful or do not work well with other cards already in the deck. When the deck has a large number of cards, it can take longer for a player to draw their best ones and play them.
+
+```{r, fig.alt = "Bar chart of each class' average deck size per floor reached faceted by whether the run wins or loses. It shows winning runs have smaller deck sizes across all classes.", echo = FALSE}
+
+data %>%
+  filter(floor_reached > 0) %>%
+  group_by(character_chosen, victory) %>%
+  summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
+  filter(length(character_chosen) > 1) %>%
+  ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
+  geom_col(position = "dodge") +
+  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
+  "#BE177F"))+
+  facet_wrap(~victory, labeller = my_labeller) +
+  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
+  theme(legend.position = "none") +
+  labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size")
+
+```
+
+# Campfires
+Campfires offer players a respite from the mobs of monsters that await them. Players sometimes have additional options at campfires, but they always have the ability to “rest” or “smith.” Resting heals the player 30% of their maximum health while smithing allows the player to upgrade a card (often increasing the damage the card deals, increasing the amount of block the card grants, or lowering the price to play a card).        
+These are options that the player will have to choose between many times throughout the run. What we can see from the first visual is that more losing runs choose to rest and more winning runs choose to smith. This makes sense because you would generally rest at lower health and losing runs have lower health on average. To try and disentangle this causation we made another graphic of the winrate at each percentage health from choosing to rest versus choosing not to rest. This shows us that generally resting is always a bad idea. The data gets a little sparse below 25% health but the trend is clear that at nearly every percent health the higher win rate option is to smith rather than rest.        
+This result was probably the most surprising one that we found. We expected there to be a point where resting was better (perhaps below half health or something like that) but that is not what we found.
+
+``` {r, echo = FALSE}
 df$REST <- str_count(df$campfire_choices, 'REST')
 df$PURGE <- str_count(df$campfire_choices, 'PURGE')
 df$SMITH <- str_count(df$campfire_choices, 'SMITH')
@@ -66,9 +162,10 @@ final_df <- merge(percentages_df_wins, percentages_df_losses, by='choice') %>%
   mutate(diff = percentage_win - percentage_loss) %>%
   filter(choice != "TOKE") %>%
   mutate(neg = ifelse(diff < 0, TRUE, FALSE))
-  
+```
 
-# Create bar plot faceted by victory
+```{r, fig.alt = "Bar plot of percentage difference between winning and losing runs for each campfire choice. It shows losing runs chose resting roughly 10% more often than winning runs, and the opposite for smithing.", echo = FALSE}
+
 ggplot(final_df) +
   aes(x = choice, y = diff, fill=neg) +
   scale_fill_manual(values = c("blue", "red")) +
@@ -80,7 +177,7 @@ ggplot(final_df) +
   theme(legend.position = "none")
 ```
 
-```{r}
+```{r, echo = FALSE}
 calc_perc_hp <- function(max_hp, curr_hp) {
   hp_per_floor <- list()
   for (i in 1:length(max_hp)) {
@@ -94,9 +191,6 @@ df$curr_hp_list <- str_extract_all(df$current_hp_per_floor, "\\d+(\\.\\d+)?")
 
 perc_hp <- df %>%
   mutate(perc_hp_per_floor = calc_perc_hp(max_hp_list, curr_hp_list))
-```
-
-```{r}
 
 mean_perc_hp_by_vitory <- perc_hp %>%
   group_by(victory) %>%
@@ -104,9 +198,7 @@ mean_perc_hp_by_vitory <- perc_hp %>%
   summarize(mean = mean(mean_perc_hp))
 
 mean_diff <- mean_perc_hp_by_vitory[[2]][2] - mean_perc_hp_by_vitory[[2]][1]
-```
 
-```{r}
 get_choices <- function(campfire_choices) {
   capfire_choices_by_floor <- list()
   for (i in 1:length(campfire_choices)) {
@@ -117,9 +209,6 @@ get_choices <- function(campfire_choices) {
 
 campfire_choices <- perc_hp %>%
   mutate(choices_by_floor = get_choices(campfire_choices))
-```
-
-```{r}
 
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
@@ -160,9 +249,8 @@ rests <- campfire_choices %>%
   mutate(perc_hp_when_dig = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "DIG")) %>%
   mutate(perc_hp_when_recall = get_hp_when_choices(perc_hp_per_floor, choices_by_floor, "RECALL")) %>%
   select(perc_hp_when_rest, victory, perc_hp_when_smith, perc_hp_when_purge, perc_hp_when_lift, perc_hp_when_toke, perc_hp_when_dig, perc_hp_when_recall)
-```
 
-```{r}
+
 rests_w <- rests %>%
   filter(victory == "True") %>%
   select(perc_hp_when_rest) %>%
@@ -212,48 +300,7 @@ all_perc_hps <- rest_perc_hps %>%
   rbind(no_rest_perc_hps)
 ```
 
-```{r}
-
-data$deck_card_count <- str_count(data$master_deck, ",") + 1
-
-data$elites_battled <- str_count(data$path_per_floor, "E") 
-
-data$deck_card_count_per_floor <- data$deck_card_count/data$floor_reached
-
-data$elites_battled_per_floor <- data$elites_battled/data$floor_reached
-
-# remove any players who didn't make it to the first campfire  - cleans out people who reset early.
-data <- data[!data$campfire_choices == "[]",]
-
-my_labeller <- labeller(victory = function(x) ifelse(x, "Win", "Loss"))
-
-```
-
-```{r}
-
-mosaic_data <- table(data$character_chosen, data$victory)[-1,]
-dimnames(mosaic_data)[[1]] <- c("Defect", "Ironclad", "The Silent", "Watcher")
-dimnames(mosaic_data)[[2]] <- c("Loss", "Win")
-
-
-colors <- c("#C81414", "#4BCAD0")
-
-mosaicplot(mosaic_data, color = colors, main = "Victory and Character Chosen")
-
-
-```
-
-```{r}
-
-all_perc_hps %>%
-  ggplot(aes(x = Percent_HP, fill = Did_Rest)) +
-  geom_density(alpha = 0.5) +
-  facet_wrap(~Victory) +
-  scale_fill_manual(values = c("red", "blue")) +
-  labs(title = "Percent HP at Campfire", x = "Percent HP", y = "Density")
-```
-
-```{r}
+```{r, fig.alt = "Line graph of percent health when presented with campfire option versus winrate of that choice. There are two lines, one for runs which rested and one for runs which did not rest. It shows that for nearly every percent hp the higher winrate option is to not rest. There are spikes in the line for resting at %hps less than 25 due to low data volume.", echo = FALSE}
 all_perc_hps %>%
   mutate(Percent_HP = round(Percent_HP, digits=2)) %>%
   group_by(Did_Rest, Percent_HP) %>%
@@ -266,26 +313,10 @@ all_perc_hps %>%
 
 ```
 
-```{r}
+# Elites
+Defeating an elite (stronger monster) rewards the player with a relic, which is an item that gives the player some type of benefit (this can be anything from healing a little every time they visit a shop to gaining extra armor every third turn of a battle). Since these battles reward relics with powerful effects, it’s logical to think players who win battle more elites to gain more relics. From our visual, we see that there is little difference between the number of elites battled between players who win or lose. Players who win typically battle slightly more elites, but this difference is miniscule.
 
-data %>%
-  filter(floor_reached > 0) %>%
-  group_by(character_chosen, victory) %>%
-  summarise(mean_deck_card_count_per_floor = mean(deck_card_count_per_floor)) %>%
-  filter(length(character_chosen) > 1) %>%
-  ggplot(aes(x = character_chosen, y = mean_deck_card_count_per_floor, fill = character_chosen)) +
-  geom_col(position = "dodge") +
-  scale_fill_manual(values = c(DEFECT = "#4BCAD0", IRONCLAD = "#C81414", THE_SILENT = "#34BA0F", WATCHER =   
-  "#BE177F"))+
-  facet_wrap(~victory, labeller = my_labeller) +
-  scale_x_discrete(labels = c("Defect", "Ironclad", "The Silent", "Watcher")) +
-  theme(legend.position = "none") +
-  labs(x = "Character", y = "Average Deck Size over Floors Reached", title = "Average Deck Size")
-
-
-```
-
-```{r}
+```{r, fig.alt = "Bar plot of average number of elites battled per floor reached for each class faceted by victory. It shows no significant difference in any bar.", echo = FALSE}
 
 data %>%
   filter(floor_reached > 0) %>%
@@ -302,3 +333,10 @@ data %>%
   labs(x = "Character", y = "Average Elites Battled over Floors Reached", title = "Average Number of Elites Battled ")
 
 ```
+
+# Conclusion
+There are four main takeaways from our analysis.
+1. The vast majority of runs end in death. This is important to keep in mind when playing so that you don’t get too upset when you lose over and over again.        
+2. Try to keep the deck size small. When you have the option to pick up a shiny new card for your deck, think twice about whether you actually need it or not. Keeping deck size small means you will get your more powerful cards more often.        
+3. Don’t rest. It's as simple as that, resting is almost always a bad idea. Instead, smith and upgrade a card to set yourself up for long term success.       
+4. Don’t worry too much about fighting lots of elites. While it is good to get relics, it can also be risky because you have to fight dangerous opponents that might kill you. Instead try to take a more balanced approach.        
