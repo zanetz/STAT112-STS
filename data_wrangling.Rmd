@@ -119,7 +119,6 @@ campfire_choices <- perc_hp %>%
 ```
 
 ```{r}
-#load("hppercs.RData")
 
 get_hp_when_choices <- function(perc_hp, campfire_choices, choice) {
   choice_hp_percs <- list()
